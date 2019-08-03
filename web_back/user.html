@@ -24,47 +24,117 @@
                 <div class="form-group">
                     <label for="inputEmail3" class="col-sm-2 control-label">用户名称：</label>
                     <div class="col-sm-4">
-                        <input type="text" class="form-control" id="inputEmail3" value="李思思">
+                        <input type="text" name="username" class="form-control username" value="李思思">
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="inputEmail3" class="col-sm-2 control-label">昵称：</label>
                     <div class="col-sm-4">
-                        <input type="text" class="form-control" id="inputEmail3" value="思思">
+                        <input type="text" name="nickname" class="form-control nickname" value="思思">
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="inputEmail3" class="col-sm-2 control-label">邮箱：</label>
                     <div class="col-sm-4">
-                        <input type="text" class="form-control" id="inputEmail3" value="lisisi@126.com">
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="inputPassword3" class="col-sm-2 control-label">用户图标：</label>
-                    <div class="col-sm-10">
-                        <img src="images/2.jpg" alt="" class="user_pic">
-                        <input type="file" id="exampleInputFile">
+                        <input type="text" name="email" class="form-control email" value="lisisi@126.com">
                     </div>
                 </div>
 
                 <div class="form-group">
-                        <label for="inputEmail3" class="col-sm-2 control-label">密码：</label>
-                        <div class="col-sm-4">
-                            <input type="password" class="form-control" id="inputEmail3" value="12345678">
-                        </div>
+                    <label for="inputPassword3" class="col-sm-2 control-label">用户图标：</label>
+                    <div class="col-sm-10">
+                        <img src="images/2.jpg" alt="" class="user_pic">
+                        <br>
+                        <label for="exampleInputFile">
+                            <img src="./images/uploadFileIcon.png" alt="">
+                        </label>
+                        <input type="file" id="exampleInputFile" name="userPic" style="display: none">
                     </div>
-               
-    
+                </div>
+
+                <div class="form-group">
+                    <label for="inputEmail3" class="col-sm-2 control-label">密码：</label>
+                    <div class="col-sm-4">
+                        <input type="password" name="password" class="form-control password" value="12345678">
+                    </div>
+                </div>
+
+
                 <div class="form-group">
                     <div class="col-sm-offset-2 col-sm-10">
-                        <button type="submit" class="btn btn-success">修改</button>
+                        <button type="submit" class="btn btn-success btn-edit">修改</button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
+    <script>
+        // 设置入口函数
+        $(function () {
+            // 需求:设置用户头像预览
+            // ### 用户头像预览
+            // 1.给input: file标签设置一个change事件.
+            $('#exampleInputFile').on('change', function () {
+                // 2.用files获取到这个标签选中的文件.
+                var file = this.files[0];
+                // 3.创建一个这个图片文件的路径
+                var url = URL.createObjectURL(file);
+                // 4.把这个路径交给img的是src属性
+                $('.user_pic').attr('src', url);
+            })
 
+            // 当页面一打开就发送ajax请求
+            $.ajax({
+                url: 'http://localhost:8080/admin/user/detail',
+                success: function (backData) {
+                    console.log(backData);
+                    if (backData.code == 200) {
+                        for (var key in backData.data) {
+                            $('input.' + key).val(backData.data[key])
+                        }
+                        $('img.user_pic').attr('src', backData.data.userPic)
+                    }
+                }
+            })
+
+            // 需求:根据用户输入的信息修改页面数据
+            // ### 保存修改
+            // 1.个人头像图片预览
+            // 2.点击修改按钮, 发送ajax请求.
+            $('.btn-edit').on('click', function (e) {
+                e.preventDefault()// 阻止默认跳转
+                var fd = new FormData($('form')[0]);
+                //     注意: jQuery结合FormData
+                // 发送ajax请求
+                $.ajax({
+                    type: 'post',
+                    url: 'http://localhost:8080/admin/user/edit',
+                    data: fd,
+                    contentType: false, // 不要给我设置请求头
+                    processData: false, // 不要把传过去的fd转成key=value值
+                    success: function (backData) {
+                        if (backData.code == 200) {
+                            alert('修改成功!');
+                            // 解决方法一
+                            // 重新发送ajax请求
+                            $.ajax({
+                                url: 'http://localhost:8080/admin/user/info',
+                                success: function (backData) {
+                                    if (backData.code == 200) {
+                                        parent.$('.user_center_link>img').attr('src', backData.data.userPic);
+                                        parent.$('.user_info>img').attr('src', backData.data.userPic);
+                                        parent.$('.user_info>span').html('欢迎&nbsp;&nbsp;' + backData.data.nickname);
+                                    }
+                                }
+                            })
+                            // 解决方法二
+                            // parent.window.location.reload();
+                        }
+                    }
+                })
+            })
+        })
+    </script>
 </body>
 
 </html>
