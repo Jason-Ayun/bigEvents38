@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="css/iconfont.css">
     <link rel="stylesheet" href="css/main.css">
     <script src="js/jquery-1.12.4.min.js"></script>
+    <script src="./js/bootstrap/js/bootstrap.min.js"></script>
+    <script src="./js//jquery.twbsPagination.js"></script>
 </head>
 
 <body>
@@ -30,9 +32,9 @@
                             <option>爱旅行</option>
                         </select>
                         <select id="selStatus" name="" class="form-control input-sm">
-                            <option>所有状态</option>
-                            <option value="drafted">草稿</option>
-                            <option value="published">已发布</option>
+                            <option value="">所有状态</option>
+                            <option value="草稿">草稿</option>
+                            <option value="已发布">已发布</option>
                         </select>
                         <button id="btnSearch" class="btn btn-default btn-sm">筛选</button>
                     </form>
@@ -269,18 +271,25 @@
     </div>
     <!-- 导入一个模板引擎文件 -->
     <script src="./js/template-web.js"></script>
-    <!-- 创建一个模板引擎 -->
+    <!-- 创建一个文章类别模板 -->
+    <script id="article_cate" type="text/html">
+        <option value="">所有分类</option>
+        {{each data v}}
+        <option value="{{v.id}}">{{v.name}}</option>
+        {{/each}}
+    </script>
+    <!-- 创建一个文章列表模板引擎 -->
     <script id="tem_list" type="text/html">
         {{each data.data v}}
         <tr>                        
             <td>{{v.title}}</td>
             <td>{{v.author}}</td>
-            <td>{{v.cateName}}</td>
+            <td>{{v.category}}</td>
             <td class="text-center">{{v.date}}</td>
             <td class="text-center">{{v.state}}</td>
             <td class="text-center">
                 <a href="article_edit.html" class="btn btn-default btn-xs">编辑</a>
-                <a href="javascript:deleteTr( 1005 );" data-id="{{v.id}}" class="btn btn-danger btn-xs">删除</a>
+                <a href="#" data-id="{{v.id}}" class="btn btn-danger btn-xs">删除</a>
             </td>
         </tr>
         {{/each}}
@@ -295,42 +304,97 @@
     <script>
         // 入口函数
         $(function () {
-            // 一进页面就发送ajax请求,加载页面
-            var catetellArr = null;
+            // 一进页面获取所有的文章分类,通过模板引擎渲染到所有分类,下拉菜单里
             $.ajax({
                 type: 'get',
                 url: 'http://localhost:8080/admin/category/list',
                 success: function (backData) {
                     console.log(backData);
-                    catetellArr = backData.data;
-                    console.log(catetellArr);
+                    // 把这些文章分类信息,通过模板引擎渲染到页面上
+                    // 调用模板引擎的核心方法
+                    var reshtml = template('article_cate', backData);
+                    $('#selCategory').html(reshtml);
                 }
             })
 
-            // 一进页面就发送ajax请求获取所有的文章
-            $.ajax({
-                type: 'get',
-                url: 'http://localhost:8080/admin/article/query',
-                data: {
-                    state: '已发布'
-                },
-                success: function (backData) {
-                    console.log(backData);
-                    if (backData.code == 200) {
-                        for (var i = 0; i < catetellArr.length; i++) {
-                            for (var j = 0; j < backData.data.data.length; j++) {
-                                if (catetellArr[i].id == backData.data.data[j].id) {
-                                    backData.data.data[j].cateName = catetellArr[i].name;
-                                    break;
-                                }
+
+            var artiCate;
+            var artiState;
+            var isTrue;
+            //需求: 点击筛选按钮,筛选出符合条件(文章分类和文章状态)的文章
+            //1.给按钮设置点击事件.
+            $('#btnSearch').on('click', function (e) {
+                e.preventDefault();
+                isTrue = false;
+                artiCate = $('#selCategory').val();
+                artiState = $('#selStatus').val();
+                // 调用封装的函数
+                getData(1, artiCate, artiState)
+            })
+            var mytotalPages = 10;
+            // 需求: 分页
+            var $pagination = $('.pagination');
+            var defaultOpts = {
+                //总页数
+                totalPages: mytotalPages,
+                //可见页数
+                visiblePages: 5,
+                first: '首页',
+                prev: "上一页",
+                next: "下一页",
+                last: '尾页',
+                //事件什么时候触发: 点击分页插件的页码的时候触发
+                onPageClick: function (event, page) {
+                    //点击的事件
+                    //console.log(event);
+                    //page是当前点击的这个页码数.
+                    console.log('呵呵');
+                    getData(page, artiCate, artiState);
+                }
+            }
+            $pagination.twbsPagination(defaultOpts);
+
+
+            // 把获取文章的代码分装成一个函数
+            function getData(myPage, artiCate, artiState) {
+                $.ajax({
+                    type: 'get',
+                    url: 'http://localhost:8080/admin/article/query',
+                    data: {
+                        type: artiCate,
+                        state: artiState,
+                        page: myPage,
+                        perpage: 5
+                    },
+                    success: function (backData) {
+                        console.log(backData);
+                        if (backData.code == 200) {
+                            // 调取模板函数的核心方法
+                            var resHtml = template('tem_list', backData);
+                            $('tbody').html(resHtml);
+
+                            var totalPages = backData.data.totalPages// 获取总的页码数
+                            if (mytotalPages != totalPages || isTrue == false) {
+
+                                mytotalPages = totalPages;
+
+                                var currentPage = $pagination.twbsPagination(
+                                    'getCurrentPage'); //获取当前页
+                                $pagination.twbsPagination('destroy');
+                                //重新渲染页码条, 会自动的去执行一次onPageClick事件.
+                                $pagination.twbsPagination($.extend({}, defaultOpts, {
+                                    startPage: 1,
+                                    totalPages: totalPages
+                                }));
+
+
+                                //如果是筛选按钮,那就进来这个判断条件,做页码条的渲染
+                                isTrue = true;
                             }
                         }
-                        // 调取模板函数的核心方法
-                        var resHtml = template('tem_list', backData);
-                        $('tbody').html(resHtml);
                     }
-                }
-            })
+                })
+            }
         })
     </script>
 
